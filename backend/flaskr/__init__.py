@@ -1,7 +1,7 @@
-from crypt import methods
+
 import os
 from flask import Flask, request, abort, jsonify
-from flask_sqlalchemy import SQLAlchemy  # , or_
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
 
@@ -48,7 +48,7 @@ def create_app(test_config=None):
         if allBooks == None:
             abort(404)
         else:
-            jsonify({
+            return jsonify({
                 'success': True,
                 'books': allBooks[start:end],
                 'total_books': len(allBooks)
@@ -63,7 +63,7 @@ def create_app(test_config=None):
     def update_rating(book_id, rating):
         specificBook = Book.query.filter(Book.id == book_id).one_or_none()
         specificBook.rating = rating
-        db.session.commit
+        db.session.commit()
         if specificBook == None:
             abort(404)
         else:
@@ -77,19 +77,35 @@ def create_app(test_config=None):
     @app.route('/books/<int:book_id>', methods=['DELETE'])
     def deleteBook(book_id):
         Book.query.filter(Book.id == book_id).delete()
+        db.session.commit()
         return jsonify({
             'success': True,
             'deleted': book_id,
-            'books': Book.query.all(),
+            'books': [book.format() for book in Book.query.all()],
             'total_books': len(Book.query.all())
         })
     # TEST: When completed, you will be able to delete a single book by clicking on the trashcan.
 
     # @TODO: Write a route that create a new book.
     #        Response body keys: 'success', 'created'(id of created book), 'books' and 'total_books'
-    @app.route('/books', methods=['POST'])
+    @app.route('/books/create', methods=['POST'])
     def createNewBook():
-        pass
+        data = request.args.get(data)
+        newBook = Book(title=data.title, author=data.author,
+                       rating=data.rating)
+        try:
+            db.session.add(newBook)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'created': Book.query.filter(Book.title == data.title).get(Book.id).format(),
+                'books': [book.format() for book in Book.query.all()],
+                'total_books': len(Book.query.all())
+            })
+        except Exception as e:
+            abort(404)
+        finally:
+            db.session.close()
     # TEST: When completed, you will be able to a new book using the form. Try doing so from the last page of books.
     #       Your new book should show up immediately after you submit it at the end of the page.
 
