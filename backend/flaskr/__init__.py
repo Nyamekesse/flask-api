@@ -1,25 +1,10 @@
 
-import os
-from shutil import ExecError
 from flask import Flask, request, abort, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-import random
 
-from models import setup_db, Book, db
+from models import setup_db, Book
 
 BOOKS_PER_SHELF = 8
-
-
-def paginate_books(request, selection):
-    page = request.args.get('page', 1, type=int)
-    start = (page - 1) * BOOKS_PER_SHELF
-    end = start + BOOKS_PER_SHELF
-
-    books = [book.format() for book in selection]
-    current_books = books[start, end]
-
-    return current_books
 
 
 def create_app(test_config=None):
@@ -28,7 +13,17 @@ def create_app(test_config=None):
     setup_db(app)
     CORS(app)
 
+    def paginate_books(request, selection):
+        page = request.args.get('page', 1, type=int)
+        start = (page - 1) * BOOKS_PER_SHELF
+        end = start + BOOKS_PER_SHELF
+
+        books = [book.format() for book in selection]
+        current_books = books[start:end]
+
+        return current_books
     # CORS Headers
+
     @app.after_request
     def after_request(response):
         response.headers.add(
@@ -59,6 +54,7 @@ def create_app(test_config=None):
     def update_rating(book_id):
 
         body = request.get_json()
+        print(body)
         try:
             book = Book.query.filter(Book.id == book_id).one_or_none()
             if book == None:
@@ -78,7 +74,8 @@ def create_app(test_config=None):
     @app.route('/books/<int:book_id>', methods=['DELETE'])
     def deleteBook(book_id):
         try:
-            book = Book.query.filter(Book.id == book_id)
+            book = Book.query.filter(Book.id == book_id).one_or_none()
+            print(book)
             if book == None:
                 abort(404)
             else:
@@ -95,9 +92,10 @@ def create_app(test_config=None):
             abort(e)
 
     # create new book route
-    @app.route('/books/newbook', methods=['POST'])
+    @app.route('/books', methods=['POST'])
     def createNewBook():
         body = request.get_json()
+        print(body)
 
         try:
             newBook = Book(title=body.get('title'), author=body.get('author'),
