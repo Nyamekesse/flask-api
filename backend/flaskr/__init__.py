@@ -68,7 +68,7 @@ def create_app(test_config=None):
                 'id': book.id
             })
         except:
-            abort(404)
+            abort(400)
 
     # delete a book route
     @app.route('/books/<int:book_id>', methods=['DELETE'])
@@ -89,30 +89,38 @@ def create_app(test_config=None):
                     'total_books': len(Book.query.all())
                 })
         except Exception as e:
-            abort(e)
+            abort(422)
 
     # create new book route
     @app.route('/books', methods=['POST'])
     def createNewBook():
         body = request.get_json()
-        print(body)
-
+        search = body.get('search')
         try:
-            newBook = Book(title=body.get('title'), author=body.get('author'),
-                           rating=body.get('rating'))
-            newBook.insert()
-            selection = Book.query.order_by(Book.id).all()
-            current_books = paginate_books(request, selection)
-            return jsonify({
-                'success': True,
-                'created': newBook.id,
-                'books': current_books,
-                'total_books': len(Book.query.all())
-            })
+            if search:
+                selection = Book.query.order_by(Book.id).filter(
+                    Book.title.ilike(f'%{search}%'))
+                current_books = paginate_books(request, selection)
+
+                return jsonify({'success': True, 'books': current_books, 'total_books': len(selection.all())})
+            else:
+
+                newBook = Book(title=body.get('title'), author=body.get('author'),
+                               rating=body.get('rating'))
+                newBook.insert()
+                selection = Book.query.order_by(Book.id).all()
+                current_books = paginate_books(request, selection)
+                return jsonify({
+                    'success': True,
+                    'created': newBook.id,
+                    'books': current_books,
+                    'total_books': len(Book.query.all())
+                })
         except:
-            abort(422)
+            abort(405)
 
     # error handlers
+
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({
